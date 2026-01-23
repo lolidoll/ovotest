@@ -811,16 +811,8 @@
                 toggleEmojiLibrary();
             });
 
-            const btnVoiceMsg = document.getElementById('btn-voice-msg');
-            if (btnVoiceMsg) {
-                btnVoiceMsg.addEventListener('click', function() {
-                    if (typeof VoiceMessageModule !== 'undefined' && typeof VoiceMessageModule.openVoiceModal === 'function') {
-                        VoiceMessageModule.openVoiceModal();
-                    } else {
-                        showToast('语音条功能加载失败');
-                    }
-                });
-            }
+            // 注意：btn-voice-msg 和 btn-location 的事件处理器由各自的模块负责
+            // 不需要在这里重复绑定事件
 
             const btnCamera = document.getElementById('btn-camera');
             const btnPhoto = document.getElementById('btn-photo');
