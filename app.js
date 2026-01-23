@@ -6709,28 +6709,42 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
         let currentApiCallRound = null;
 
         function appendAssistantMessage(convId, text) {
+            // ========== 【第0步】提取心声信息 - 必须在所有处理之前！==========
+            // 【关键】心声可能在最后的消息块之后，所以必须从完整的API响应中提取
+            const mindStateData = extractMindStateFromText(text);
+            
+            if (mindStateData) {
+                console.log('✅ 心声从完整API响应中提取成功');
+            } else {
+                console.warn('⚠️ 完整API响应中未找到心声标记');
+            }
+            
             // 首先检查是否包含思考过程格式
             const thinkingData = parseThinkingProcess(text);
             
             if (thinkingData) {
                 // 存在思考过程，分批添加消息
-                appendMultipleAssistantMessages(convId, thinkingData);
+                appendMultipleAssistantMessages(convId, thinkingData, mindStateData);
             } else {
                 // 普通消息，按原有逻辑处理
-                appendSingleAssistantMessage(convId, text);
+                appendSingleAssistantMessage(convId, text, mindStateData);
             }
         }
 
-        function appendSingleAssistantMessage(convId, text) {
-            // ========== 第一步：提取心声信息（新架构 - 在清理之前提取！） ==========
-            // 【关键】必须在cleanAIResponse之前提取，因为cleanAIResponse会删除心声内容！
-            const mindStateData = extractMindStateFromText(text);
+        function appendSingleAssistantMessage(convId, text, preExtractedMindData = null) {
+            // ========== 第一步：使用预提取的心声数据或重新提取 ==========
+            // 如果已经从 appendAssistantMessage 中提取过，则使用预提取的数据
+            let mindStateData = preExtractedMindData;
+            
+            if (!mindStateData) {
+                // 如果没有预提取的数据，则尝试重新提取（兼容直接调用的情况）
+                mindStateData = extractMindStateFromText(text);
+            }
             
             if (mindStateData) {
-                console.log('✅ 心声提取成功（在清理之前）');
+                console.log('✅ 心声提取成功（已有数据或重新提取）');
             } else {
-                console.error('❌ 心声提取失败 - AI响应中可能没有【心声】标记');
-                console.error('API响应前500字:', text.substring(0, 500));
+                console.warn('⚠️ 心声未找到 - AI响应中可能没有【心声】标记');
             }
             
             // ========== 第二步：清理AI回复（移除心声标记及其他内部标记） ==========
@@ -6897,7 +6911,7 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
             triggerNotificationIfLeftChat(convId);
         }
 
-        function appendMultipleAssistantMessages(convId, thinkingData) {
+        function appendMultipleAssistantMessages(convId, thinkingData, mindStateData = null) {
             // 处理多条消息的情况，按延迟依次添加
             let currentDelay = 0;
             const messages = thinkingData.messages || [];
@@ -6925,8 +6939,6 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                         }
                         content = content.replace(emojiRegex, '').trim();
                     }
-                    
-                    // 【新架构】心声已在 appendSingleAssistantMessage 中从主API响应自动提取
                     
                     content = cleanAIResponse(content);
                     
@@ -6960,8 +6972,25 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                     if (AppState.currentChat && AppState.currentChat.id === convId) renderChatMessages();
                     renderConversations();
                     
-                    // 只在最后一条消息后触发通知
+                    // 【关键】只在最后一条消息后才保存心声数据和触发通知
                     if (index === messages.length - 1) {
+                        // 保存心声数据（如果有）
+                        if (mindStateData && conv) {
+                            if (!conv.mindStates) {
+                                conv.mindStates = [];
+                            }
+                            // 检查是否有有效的心声数据
+                            const hasValidMindData = Object.values(mindStateData).some(v => v !== null && v !== undefined && v !== '');
+                            if (hasValidMindData) {
+                                mindStateData.timestamp = new Date().toISOString();
+                                mindStateData.messageId = aiMsg.id;
+                                mindStateData.failed = false;
+                                conv.mindStates.push(mindStateData);
+                                console.log('✅ 心声数据已保存到多消息会话:', convId, mindStateData);
+                            }
+                            saveToStorage();
+                        }
+                        
                         triggerNotificationIfLeftChat(convId);
                     }
                 }, currentDelay);
