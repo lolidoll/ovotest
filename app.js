@@ -8938,7 +8938,7 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                         <div style="margin-bottom:12px;padding:12px;background:#f9f9f9;border-radius:4px;border-left:3px solid ${affinityColor};">
                             <div style="font-size:14px;color:#333;font-weight:600;margin-bottom:4px;display:flex;align-items:center;">
                                 <span>好感度</span>
-                                <span style="margin-left:auto;font-size:11px;background:${affinityColor};color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;">${affinityValue}💖</span>
+                                <span style="margin-left:auto;font-size:11px;background:${affinityColor};color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;">${affinityValue}</span>
                             </div>
                             ${affinityBar}
                             ${changeReasonHtml}
