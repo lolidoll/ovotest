@@ -38,7 +38,6 @@
                 secondarySelectedModel: '', // 副API选定的模型
                 // 副API功能提示词
                 secondaryPrompts: {
-                    mindState: '根据以下对话内容，深入分析角色的当前心理状态和真实想法。请严格按照以下格式返回，不能省略任何字段，不能为空：\n\n【心声】\n穿搭：{具体描述角色的衣着、配饰、整体风格}\n心情：{细腻描述角色的情绪状态，可包含矛盾}\n动作：{描述角色正在做或习惯的小动作}\n心声：{角色内心真实想法，可包含犹豫、期待等}\n坏心思：{角色的真实想法或小计划，必须填写}\n好感度：{0-100的整数}\n好感度变化：{变化数值，如+5或-2或0}\n好感度原因：{简短说明，10字以内}\n\n要求：\n- 每个字段必须有内容，不能为空\n- 穿搭、心情、动作、心声、坏心思各100字左右\n- 好感度必须是0-100之间的整数\n- 好感度变化必须是整数，首次对话为0\n- 好感度原因简洁准确，如"共鸣"、"理解"、"冒犯"等',
                     translateChinese: '你是一个翻译助手。将用户提供的非中文文本翻译成简体中文。只返回翻译结果，不要有其他内容。',
                     translateEnglish: '你是一个翻译助手。将用户提供的中文文本翻译成英文。只返回翻译结果，不要有其他内容。',
                     summarize: '你是一个专业的对话总结员。请为下面的对话内容生成一份简洁准确的总结。总结应该：1. 抓住对话的核心内容和主题；2. 保留重要信息和决策；3. 简洁明了，长度适中（200-300字）；4. 用简体中文或原语言撰写。'
@@ -222,6 +221,15 @@
                         if (key !== 'user' && key !== 'conversationStates') {
                             AppState[key] = parsed[key];
                         }
+                    }
+                    
+                    // 【新增】为所有对话初始化 mindStates 数组（如果不存在）
+                    if (AppState.conversations && Array.isArray(AppState.conversations)) {
+                        AppState.conversations.forEach(conv => {
+                            if (!conv.mindStates) {
+                                conv.mindStates = [];
+                            }
+                        });
                     }
                     
                     AppState.conversationStates = {};
@@ -1145,16 +1153,30 @@
                     ? `<img src="${conv.avatar}" alt="">` 
                     : conv.name.charAt(0);
                 
+                // ========== 【新增】获取最新的好感度信息 ==========
+                let affinityDisplay = '';
+                if (conv.mindStates && conv.mindStates.length > 0) {
+                    const latestMindState = conv.mindStates[conv.mindStates.length - 1];
+                    if (latestMindState && latestMindState.affinity !== undefined && typeof latestMindState.affinity === 'number') {
+                        const affinity = latestMindState.affinity;
+                        const affinityColor = affinity >= 70 ? '#4CAF50' : (affinity >= 40 ? '#FFC107' : '#F44336');
+                        affinityDisplay = `<span style="display:inline-block;margin-left:8px;padding:2px 8px;background:${affinityColor};color:#fff;font-size:11px;border-radius:3px;font-weight:bold;">${affinity}💖</span>`;
+                    }
+                }
+                
                 item.innerHTML = `
                     <div class="msg-item-content" style="display:flex;align-items:center;gap:12px;padding:12px 15px;background:#fff;position:relative;z-index:2;cursor:pointer;">
                         <div class="msg-avatar">
                             ${avatarContent}
                             ${conv.unread > 0 ? `<div class="msg-badge">${conv.unread > 99 ? '99+' : conv.unread}</div>` : ''}
                         </div>
-                        <div class="msg-content">
+                        <div class="msg-content" style="flex:1;">
                             <div class="msg-header">
-                                <div class="msg-title">${conv.name}</div>
-                                <div class="msg-time">${conv.time || ''}</div>
+                                <div class="msg-title" style="flex:1;">${conv.name}</div>
+                                <div style="display:flex;align-items:center;gap:4px;">
+                                    ${affinityDisplay}
+                                    <div class="msg-time" style="white-space:nowrap;">${conv.time || ''}</div>
+                                </div>
                             </div>
                             <div class="msg-desc">${conv.lastMsg || ''}</div>
                         </div>
@@ -2314,7 +2336,8 @@
                             time: formatTime(new Date()),
                             lastMessageTime: new Date().toISOString(),
                             unread: 0,
-                            boundWorldbooks: [existingWb.id]  // 绑定世界书
+                            boundWorldbooks: [existingWb.id],  // 绑定世界书
+                            mindStates: []  // 【新增】初始化心声数据数组
                         };
                         AppState.conversations.unshift(conv);
                     }
@@ -2414,7 +2437,8 @@
                     lastMsg: friend.greeting || '',
                     time: formatTime(new Date()),
                     lastMessageTime: new Date().toISOString(),  // 保存完整时间戳用于排序
-                    unread: 0
+                    unread: 0,
+                    mindStates: []  // 【新增】初始化心声数据数组
                 };
                 AppState.conversations.unshift(conv);
                 
@@ -2452,7 +2476,8 @@
                     lastMsg: '',
                     time: formatTime(new Date()),
                     lastMessageTime: new Date().toISOString(),  // 保存完整时间戳用于排序
-                    unread: 0
+                    unread: 0,
+                    mindStates: []  // 【新增】初始化心声数据数组
                 };
                 AppState.conversations.unshift(conv);
                 
@@ -8754,6 +8779,7 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
             // 获取当前状态
             const currentState = chat.mindStates[chat.mindStates.length - 1] || {};
             const isFailedState = currentState.failed;
+            const hasNoMindState = chat.mindStates.length === 0 || (Object.keys(currentState).length === 0 || (Object.keys(currentState).length === 1 && currentState.failed === undefined));
             
             let content = `
                 <div class="emoji-mgmt-content" style="max-width:400px;background:#f5f5f5;display:flex;flex-direction:column;max-height:80vh;">
@@ -8762,41 +8788,30 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                         <button onclick="document.getElementById('mind-state-modal').remove();" style="border:none;background:none;cursor:pointer;font-size:20px;color:#666;">×</button>
                     </div>
                     ${isFailedState ? `<div style="padding:12px;background:#fff3cd;border-bottom:1px solid #ffc107;color:#856404;font-size:12px;">⚠️ 心声提取失败：请确保API已配置正确，且AI在回复末尾添加了完整的【心声】标记。</div>` : ''}
-                    
-                    <div style="padding:16px;background:#fff;margin-bottom:0;flex:1;overflow-y:auto;overflow-x:hidden;">
             `;
             
-            mindItems.forEach(item => {
-                // 不使用默认值"暂无"，直接显示空或已生成的值
-                let value = currentState[item.key] !== undefined ? currentState[item.key] : null;
-                let displayValue = value;
+            if (hasNoMindState) {
+                content += `<div style="padding:20px;background:#fff;margin-bottom:0;flex:1;overflow-y:auto;overflow-x:hidden;display:flex;align-items:center;justify-content:center;text-align:center;"><div style="color:#999;"><div style="font-size:32px;margin-bottom:12px;">💭</div><div style="font-size:14px;margin-bottom:8px;">暂无心声数据</div><div style="font-size:12px;color:#bbb;">双击角色头像生成首条心声</div></div></div>`;
+            } else {
+                content += `<div style="padding:16px;background:#fff;margin-bottom:0;flex:1;overflow-y:auto;overflow-x:hidden;">`;
                 
-                // 检查是否有失败标记
-                if (currentState.failed) {
-                    // 显示失败原因，但不影响其他字段的显示
-                    if (item.key === 'outfit') {
-                        // 在第一个字段（穿搭）处显示失败提示
-                        content += `
-                            <div style="margin-bottom:12px;padding:12px;background:#fff3cd;border-radius:4px;border-left:3px solid #ff9800;">
-                                <div style="font-size:13px;color:#ff9800;word-break:break-all;">⚠️ ${currentState.reason || '心声数据提取失败'}</div>
-                            </div>
-                        `;
-                        return;
-                    }
-                }
+                // 【优化】先单独处理好感度，确保它总是第一个显示
+                const affinityItem = mindItems.find(item => item.key === 'affinity');
+                const otherItems = mindItems.filter(item => item.key !== 'affinity');
                 
-                // 好感度特殊处理（移到最前面，并显示变化和原因）
-                if (item.key === 'affinity' && typeof value === 'number') {
-                    const affinityColor = value >= 70 ? '#4CAF50' : (value >= 40 ? '#FFC107' : '#F44336');
+                // 先渲染好感度（如果有）
+                const affinityValue = currentState[affinityItem.key] !== undefined ? currentState[affinityItem.key] : null;
+                if (affinityValue !== null && typeof affinityValue === 'number') {
+                    const affinityColor = affinityValue >= 70 ? '#4CAF50' : (affinityValue >= 40 ? '#FFC107' : '#F44336');
                     const change = currentState.affinityChange || 0;
                     const changeDisplay = change > 0 ? `+${change}` : change;
                     const reason = currentState.affinityReason || '';
                     
                     const affinityBar = `
                         <div style="width:100%;height:8px;background:#e0e0e0;border-radius:4px;margin-top:4px;overflow:hidden;">
-                            <div style="width:${value}%;height:100%;background:${affinityColor};transition:width 0.3s;"></div>
+                            <div style="width:${affinityValue}%;height:100%;background:${affinityColor};transition:width 0.3s;"></div>
                         </div>
-                        <div style="font-size:12px;color:${affinityColor};margin-top:4px;font-weight:bold;">${value}/100</div>
+                        <div style="font-size:12px;color:${affinityColor};margin-top:4px;font-weight:bold;">${affinityValue}/100</div>
                     `;
                     
                     let changeReasonHtml = '';
@@ -8814,34 +8829,51 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                     
                     content += `
                         <div style="margin-bottom:12px;padding:12px;background:#f9f9f9;border-radius:4px;border-left:3px solid ${affinityColor};">
-                            <div style="font-size:14px;color:#333;font-weight:600;margin-bottom:4px;">${item.label}</div>
+                            <div style="font-size:14px;color:#333;font-weight:600;margin-bottom:4px;display:flex;align-items:center;">
+                                <span>好感度</span>
+                                <span style="margin-left:auto;font-size:11px;background:${affinityColor};color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;">${affinityValue}💖</span>
+                            </div>
                             ${affinityBar}
                             ${changeReasonHtml}
                         </div>
                     `;
-                    return;
                 }
                 
-                // 只显示非空的字段
-                if (value === null || value === undefined || value === '') {
-                    return; // 跳过空字段，不显示
+                // 显示失败提示（如果有）
+                if (currentState.failed) {
+                    content += `
+                        <div style="margin-bottom:12px;padding:12px;background:#fff3cd;border-radius:4px;border-left:3px solid #ff9800;">
+                            <div style="font-size:13px;color:#ff9800;word-break:break-all;">⚠️ ${currentState.reason || '心声数据提取失败'}</div>
+                        </div>
+                    `;
                 }
                 
-                // 检查字段值是否被污染（包含其他标签的内容）
-                const hasOtherLabels = /穿搭|心情|动作|心声|坏心思|好感度/.test(String(value));
-                const itemColor = hasOtherLabels ? '#ff9800' : '#333';
+                // 再渲染其他字段
+                otherItems.forEach(item => {
+                    let value = currentState[item.key] !== undefined ? currentState[item.key] : null;
+                    let displayValue = value;
+                    
+                    // 只显示非空的字段
+                    if (value === null || value === undefined || value === '') {
+                        return;
+                    }
+                    
+                    // 检查字段值是否被污染（包含其他标签的内容）
+                    const hasOtherLabels = /穿搭|心情|动作|心声|坏心思|好感度/.test(String(value));
+                    const itemColor = hasOtherLabels ? '#ff9800' : '#333';
+                    
+                    content += `
+                        <div style="margin-bottom:12px;padding:12px;background:#f9f9f9;border-radius:4px;border-left:3px solid ${itemColor};">
+                            <div style="font-size:14px;color:#333;font-weight:600;margin-bottom:4px;">${item.label}</div>
+                            <div style="font-size:13px;color:${hasOtherLabels ? '#ff9800' : '#666'};word-break:break-all;">${escapeHtml(String(displayValue))}</div>
+                        </div>
+                    `;
+                });
                 
-                content += `
-                    <div style="margin-bottom:12px;padding:12px;background:#f9f9f9;border-radius:4px;border-left:3px solid ${itemColor};">
-                        <div style="font-size:14px;color:#333;font-weight:600;margin-bottom:4px;">${item.label}</div>
-                        <div style="font-size:13px;color:${hasOtherLabels ? '#ff9800' : '#666'};word-break:break-all;">${escapeHtml(String(displayValue))}</div>
-                    </div>
-                `;
-            });
+                content += `</div>`;
+            }
             
             content += `
-                    </div>
-                    
                     <div style="padding:12px;background:#fff;border-top:1px solid #ddd;display:flex;gap:8px;flex-shrink:0;">
                         <button onclick="showCharacterMindHistory('${chat.id}');" style="flex:1;padding:10px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;font-size:13px;">历史心声</button>
                         <button onclick="document.getElementById('mind-state-modal').remove();" style="flex:1;padding:10px;border:none;background:#333;color:#fff;border-radius:4px;cursor:pointer;font-size:13px;">关闭</button>
