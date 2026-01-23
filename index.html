@@ -12,12 +12,73 @@
     <title>薯片机</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="moments.css">
+    <link rel="stylesheet" href="auth-modal.css">
+    <script src="auth-modal.js" defer></script>
+    <script src="login.js" defer></script>
     <script src="app.js" defer></script>
     <script src="voice-message.js" defer></script>
     <script src="location-message.js" defer></script>
   
 </head>
 <body>
+    <!-- 认证模态框 (新设计) -->
+    <div class="auth-modal-overlay" id="auth-modal-overlay">
+        <div class="auth-modal-container">
+            <!-- 背景装饰 -->
+            <div class="auth-bg-decoration"></div>
+            
+            <!-- 模态框内容 -->
+            <div class="auth-modal-content">
+                <!-- 顶部装饰线 -->
+                <div class="auth-top-bar"></div>
+                
+                <!-- Logo 和标题 -->
+                <div class="auth-header">
+                    <div class="auth-logo">
+                        <img class="auth-logo-icon" src="https://image.uglycat.cc/qs8mf5.png" alt="Logo">
+                    </div>
+                    <h1 class="auth-title">薯片机</h1>
+                    <p class="auth-subtitle">仅用于个人学习，本代码完全开源设计<br>支持任何二改（但需标注原作者“小薯片”）<br>该小手机完全免费，如遇付费即刻申请退款。</p>
+                </div>
+                
+                <!-- 主要内容 -->
+                <div class="auth-main">
+                    <div class="auth-intro">
+                        <div class="auth-intro-item">
+                            <div class="auth-intro-icon">✨</div>
+                            <div class="auth-intro-text">角色扮演</div>
+                        </div>
+                        <div class="auth-intro-item">
+                            <div class="auth-intro-icon">🎀</div>
+                            <div class="auth-intro-text">虚拟聊天</div>
+                        </div>
+                        <div class="auth-intro-item">
+                            <div class="auth-intro-icon">💕</div>
+                            <div class="auth-intro-text">AI互动</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 登录按钮 -->
+                <div class="auth-actions">
+                    <button class="auth-btn auth-btn-discord" id="auth-discord-btn">
+                        <svg class="auth-btn-icon" viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M20.317 4.3671C18.7975 3.5373 17.147 2.9708 15.4545 2.7085C15.2087 3.1137 14.9369 3.6137 14.7562 4.0171C12.9712 3.7285 11.2146 3.7285 9.47812 4.0171C9.29745 3.6052 9.01312 3.1137 8.76437 2.7085C7.07382 2.9708 5.40277 3.5373 3.88233 4.3671C0.570533 9.1293 -0.0828944 13.7936 0.261145 18.3886C2.18418 19.7754 4.04779 20.6145 5.88147 21.1274C6.39521 20.4220 6.84365 19.6693 7.20782 18.8720C6.40771 18.5533 5.63360 18.1450 4.91162 17.6620C5.10249 17.5115 5.28905 17.3569 5.46412 17.1997C9.88141 19.4027 14.7457 19.4027 19.0528 17.1997C19.2278 17.3569 19.4149 17.5115 19.6011 17.6620C18.8791 18.1450 18.1045 18.5533 17.3046 18.8720C17.6684 19.6693 18.1169 20.4220 18.6307 21.1274C20.4645 20.6145 22.3281 19.7754 24.2511 18.3886C24.6314 13.3471 23.7067 8.8267 20.317 4.3671ZM8.02109 15.6503C6.8559 15.6503 5.90977 14.6039 5.90977 13.3287C5.90977 12.0535 6.8404 11.0071 8.02109 11.0071C9.20178 11.0071 10.1424 12.0535 10.1424 13.3287C10.1424 14.6039 9.20178 15.6503 8.02109 15.6503ZM15.9775 15.6503C14.8123 15.6503 13.8662 14.6039 13.8662 13.3287C13.8662 12.0535 14.7969 11.0071 15.9775 11.0071C17.1582 11.0071 18.0989 12.0535 18.0989 13.3287C18.0989 14.6039 17.1582 15.6503 15.9775 15.6503Z"/>
+                        </svg>
+                        <span>使用 Discord 登录</span>
+                    </button>
+                    <p class="auth-tips">登录后将在此设备保持登录状态</p>
+                </div>
+                
+                <!-- 加载状态 -->
+                <div class="auth-loading" id="auth-loading" style="display: none;">
+                    <div class="auth-spinner"></div>
+                    <p>正在连接 Discord...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 消息通知栏 -->
     <div class="notification-bar" id="notification-bar">
         <div class="notification-content">

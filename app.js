@@ -813,7 +813,13 @@
 
             const btnVoiceMsg = document.getElementById('btn-voice-msg');
             if (btnVoiceMsg) {
-                btnVoiceMsg.addEventListener('click', function() { showToast('语音条功能尚未实现'); });
+                btnVoiceMsg.addEventListener('click', function() {
+                    if (typeof VoiceMessageModule !== 'undefined' && typeof VoiceMessageModule.openVoiceModal === 'function') {
+                        VoiceMessageModule.openVoiceModal();
+                    } else {
+                        showToast('语音条功能加载失败');
+                    }
+                });
             }
 
             const btnCamera = document.getElementById('btn-camera');
@@ -6546,22 +6552,24 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                 
                 // 尝试所有可能的标签
                 for (const label of fieldDef.labels) {
-                    // 创建更灵活的匹配模式
+                    // 创建更灵活的匹配模式 - 修复了正则表达式的双反斜杠问题
                     const patterns = [
-                        // 模式1：标签：内容（到下一个标签或结尾）
-                        new RegExp(`${label}[：:]+\\s*([^\\n]*?)(?=\\n(?:穿搭|心情|动作|心声|坏心思|好感度|好感度变化|好感度原因)|$)`, 'i'),
-                        // 模式2：标签：内容（到空行）
-                        new RegExp(`${label}[：:]+\\s*([^\\n]+)`, 'i'),
-                        // 模式3：标签: 内容（支持多行到下一个标签）
-                        new RegExp(`${label}[：:]+([\\s\\S]*?)(?=(?:穿搭|心情|动作|心声|坏心思|好感度|好感度变化|好感度原因)[：:]+|$)`, 'i')
+                        // 模式1：标签：内容（到下一个已知标签或结尾）- 不跨行
+                        new RegExp(`${label}[：:]+\\s*([^\\n【]*?)\\s*(?=\\n|(?:穿搭|心情|动作|心声|坏心思|好感度|好感度变化|好感度原因)[：:]|$)`, 'i'),
+                        // 模式2：标签：内容（单行，包括空格）
+                        new RegExp(`${label}[：:]+\\s*([^\\n]+?)\\s*$`, 'gmi'),
+                        // 模式3：标签：内容（更宽松，匹配到任何非【】字符）
+                        new RegExp(`${label}[：:]\\s*([^【]*?)(?=\\s*(?:穿搭|心情|动作|心声|坏心思|好感度|好感度变化|好感度原因)[：:]|\\s*$)`, 'i')
                     ];
                     
                     for (const pattern of patterns) {
                         const match = mindContent.match(pattern);
                         if (match && match[1]) {
                             value = match[1].trim();
+                            // 移除多余的标点和标记
+                            value = value.replace(/^[：:]/, '').trim();
                             // 如果找到了有效值，就停止寻找
-                            if (value.length > 0) {
+                            if (value && value.length > 0) {
                                 break;
                             }
                         }
@@ -6574,23 +6582,31 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                 }
                 
                 if (value && value.length > 0) {
-                    // 清理值：移除可能的多余标记和换行
-                    value = value.replace(/【.*?】/g, '').replace(/\n/g, ' ').trim();
+                    // 清理值：移除可能的多余标记和换行，但保留有意义的内容
+                    value = value.replace(/【.*?】/g, '').replace(/\s+/g, ' ').trim();
+                    
+                    // 防止字段值过长被其他字段内容污染
+                    if (value.length > 500) {
+                        value = value.substring(0, 500);
+                    }
                     
                     // 特殊处理数值字段
                     if (fieldDef.key === 'affinity' || fieldDef.key === 'affinityChange') {
                         // 尝试提取数字
-                        const numberMatch = value.match(/(-?\\d+)/);
+                        const numberMatch = value.match(/(-?\d+)/);
                         if (numberMatch) {
                             mindState[fieldDef.key] = parseInt(numberMatch[1]);
                         } else {
                             mindState[fieldDef.key] = null;
                         }
                     } else {
-                        mindState[fieldDef.key] = value || null;
+                        // 确保文本字段不为空
+                        if (value.length > 0) {
+                            mindState[fieldDef.key] = value;
+                        }
                     }
                     
-                    console.log(`  ✓ ${fieldDef.key}:`, mindState[fieldDef.key]);
+                    console.log(`  ✓ ${fieldDef.key}: "${value.substring(0, 50)}${value.length > 50 ? '...' : ''}"`);
                 }
             }
             
@@ -6796,32 +6812,37 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
             // ========== 第六步：保存心声数据（如果有） ==========
             const conv = AppState.conversations.find(c => c.id === convId);
             const aiMsg = AppState.messages[convId][AppState.messages[convId].length - 1];
-            if (conv && mindStateData && Object.keys(mindStateData).length > 0) {
+            
+            // 检查心声数据是否有效 - 至少需要有一个字段有值
+            const hasValidMindData = mindStateData && Object.values(mindStateData).some(v => v !== null && v !== undefined && v !== '');
+            
+            if (conv && hasValidMindData) {
                 if (!conv.mindStates) {
                     conv.mindStates = [];
                 }
                 // 添加时间戳和消息ID
                 mindStateData.timestamp = new Date().toISOString();
                 mindStateData.messageId = aiMsg.id;
+                mindStateData.failed = false;
                 conv.mindStates.push(mindStateData);
-                console.log('💾 心声数据已保存到会话:', convId);
-            } else if (!mindStateData) {
-                // 心声提取失败 - 创建一个占位符或空记录
-                if (!conv) {
-                    // 会话不存在，无法保存
-                    console.warn('❌ 无法保存心声 - 会话未找到');
-                } else {
+                console.log('💾 心声数据已保存到会话:', convId, mindStateData);
+            } else if (!mindStateData || !hasValidMindData) {
+                // 心声提取失败或为空 - 创建一个失败记录
+                if (conv) {
                     if (!conv.mindStates) {
                         conv.mindStates = [];
                     }
                     // 添加一个标记，说明这一条消息的心声需要生成
                     conv.mindStates.push({
                         timestamp: new Date().toISOString(),
-                        messageId: aiMsg.id,
+                        messageId: aiMsg ? aiMsg.id : '',
                         failed: true,  // 标记为失败
-                        reason: '自动提取失败，请检查API回复格式'
+                        reason: !mindStateData ? '【心声】标记未找到，请检查API回复' : '心声数据为空，请确保AI返回了完整的心声信息',
+                        failedReason: !mindStateData ? 'NO_MINDSTATE_MARKER' : 'EMPTY_MINDSTATE_DATA'
                     });
-                    console.log('⚠️ 已记录心声提取失败');
+                    console.log('⚠️ 已记录心声提取失败:', !mindStateData ? '【心声】标记未找到' : '心声数据为空');
+                } else {
+                    console.warn('❌ 无法保存心声 - 会话未找到');
                 }
             }
             
@@ -6885,7 +6906,8 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                         content: content,
                         emojiUrl: emojiUrl,
                         isEmoji: emojiUrl ? true : false,
-                        time: new Date().toISOString()
+                        time: new Date().toISOString(),
+                        apiCallRound: currentApiCallRound  // 添加API调用回合标记，确保删除时能识别
                     };
                     
                     if (!AppState.messages[convId]) {
@@ -8759,7 +8781,16 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                 
                 // 检查是否有失败标记
                 if (currentState.failed) {
-                    displayValue = '⚠️ ' + (currentState.reason || '自动提取失败，请检查API回复格式');
+                    // 显示失败原因，但不影响其他字段的显示
+                    if (item.key === 'outfit') {
+                        // 在第一个字段（穿搭）处显示失败提示
+                        content += `
+                            <div style="margin-bottom:12px;padding:12px;background:#fff3cd;border-radius:4px;border-left:3px solid #ff9800;">
+                                <div style="font-size:13px;color:#ff9800;word-break:break-all;">⚠️ ${currentState.reason || '心声数据提取失败'}</div>
+                            </div>
+                        `;
+                        return;
+                    }
                 }
                 
                 // 好感度特殊处理（移到最前面，并显示变化和原因）
@@ -8784,7 +8815,7 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                             changeReasonHtml += `<div style="color:${changeColor};font-weight:bold;">变化：${changeDisplay}</div>`;
                         }
                         if (reason) {
-                            changeReasonHtml += `<div style="color:#666;margin-top:4px;">原因：${escapeHtml(reason)}</div>`;
+                            changeReasonHtml += `<div style="color:#666;margin-top:4px;">原因：${escapeHtml(String(reason))}</div>`;
                         }
                         changeReasonHtml += `</div>`;
                     }
@@ -8799,14 +8830,19 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                     return;
                 }
                 
-                // 检查是否为失败状态
-                const isFailedState = currentState.failed && item.key !== 'affinity';
-                const itemColor = isFailedState ? '#ff9800' : '#333';
+                // 只显示非空的字段
+                if (value === null || value === undefined || value === '') {
+                    return; // 跳过空字段，不显示
+                }
+                
+                // 检查字段值是否被污染（包含其他标签的内容）
+                const hasOtherLabels = /穿搭|心情|动作|心声|坏心思|好感度/.test(String(value));
+                const itemColor = hasOtherLabels ? '#ff9800' : '#333';
                 
                 content += `
                     <div style="margin-bottom:12px;padding:12px;background:#f9f9f9;border-radius:4px;border-left:3px solid ${itemColor};">
                         <div style="font-size:14px;color:#333;font-weight:600;margin-bottom:4px;">${item.label}</div>
-                        <div style="font-size:13px;color:${displayValue === null || isFailedState ? '#ff9800' : '#666'};word-break:break-all;">${displayValue === null ? '尚未生成' : escapeHtml(String(displayValue))}</div>
+                        <div style="font-size:13px;color:${hasOtherLabels ? '#ff9800' : '#666'};word-break:break-all;">${escapeHtml(String(displayValue))}</div>
                     </div>
                 `;
             });
