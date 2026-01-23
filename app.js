@@ -6526,12 +6526,19 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
 
         // ========== 心声提取函数（新架构：从主API响应中提取） ==========
         function extractMindStateFromText(text) {
+            console.log(`\n🔍 extractMindStateFromText 被调用`);
+            console.log(`   输入文本长度: ${text?.length || 0}`);
+            
             if (!text || typeof text !== 'string') {
+                console.warn(`⚠️ 输入文本无效`);
                 return null;
             }
             
             // 查找【心声】标记
             const mindMarkerIndex = text.indexOf('【心声】');
+            
+            console.log(`   查找【心声】标记: ${mindMarkerIndex >= 0 ? '✅ 找到' : '❌ 未找到'}`);
+            console.log(`   标记位置: ${mindMarkerIndex}`);
             
             if (mindMarkerIndex === -1) {
                 console.error('❌ 未在主API响应中找到【心声】标记');
@@ -6711,22 +6718,33 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
         function appendAssistantMessage(convId, text) {
             // ========== 【第0步】提取心声信息 - 必须在所有处理之前！==========
             // 【关键】心声可能在最后的消息块之后，所以必须从完整的API响应中提取
+            console.log(`📝 appendAssistantMessage 被调用，text长度: ${text.length}`);
+            
             const mindStateData = extractMindStateFromText(text);
             
+            console.log(`📋 extractMindStateFromText 返回:`, mindStateData);
+            console.log(`📋 mindStateData类型:`, typeof mindStateData);
+            console.log(`📋 mindStateData是否为null:`, mindStateData === null);
+            console.log(`📋 mindStateData是否为undefined:`, mindStateData === undefined);
+            
             if (mindStateData) {
-                console.log('✅ 心声从完整API响应中提取成功');
+                console.log('✅ 心声从完整API响应中提取成功', mindStateData);
             } else {
-                console.warn('⚠️ 完整API响应中未找到心声标记');
+                console.warn('⚠️ 完整API响应中未找到心声标记或心声为空');
             }
             
             // 首先检查是否包含思考过程格式
             const thinkingData = parseThinkingProcess(text);
             
+            console.log(`🔍 parseThinkingProcess 返回:`, thinkingData ? `有多条消息 (${thinkingData.messages?.length || 0}条)` : '单条消息');
+            
             if (thinkingData) {
                 // 存在思考过程，分批添加消息
+                console.log(`📤 调用 appendMultipleAssistantMessages，传入mindStateData:`, mindStateData);
                 appendMultipleAssistantMessages(convId, thinkingData, mindStateData);
             } else {
                 // 普通消息，按原有逻辑处理
+                console.log(`📤 调用 appendSingleAssistantMessage，传入mindStateData:`, mindStateData);
                 appendSingleAssistantMessage(convId, text, mindStateData);
             }
         }
@@ -6974,6 +6992,11 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                     
                     // 【关键】只在最后一条消息后才保存心声数据和触发通知
                     if (index === messages.length - 1) {
+                        console.log(`\n✅ 处理多消息的最后一条，开始保存心声数据...`);
+                        console.log(`   conv 存在: ${conv ? '✅ 是' : '❌ 否'}`);
+                        console.log(`   mindStateData 存在: ${mindStateData ? '✅ 是' : '❌ 否'}`);
+                        console.log(`   mindStateData 内容:`, mindStateData);
+                        
                         // 保存心声数据（如果有）
                         if (mindStateData && conv) {
                             if (!conv.mindStates) {
@@ -6981,14 +7004,24 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                             }
                             // 检查是否有有效的心声数据
                             const hasValidMindData = Object.values(mindStateData).some(v => v !== null && v !== undefined && v !== '');
+                            
+                            console.log(`   hasValidMindData: ${hasValidMindData}`);
+                            console.log(`   Object.values(mindStateData):`, Object.values(mindStateData));
+                            
                             if (hasValidMindData) {
                                 mindStateData.timestamp = new Date().toISOString();
                                 mindStateData.messageId = aiMsg.id;
                                 mindStateData.failed = false;
                                 conv.mindStates.push(mindStateData);
-                                console.log('✅ 心声数据已保存到多消息会话:', convId, mindStateData);
+                                console.log(`✅ 心声数据已保存到多消息会话: ${convId}`);
+                                console.log(`   保存的数据:`, mindStateData);
+                                console.log(`   当前mindStates长度:`, conv.mindStates.length);
+                            } else {
+                                console.warn(`⚠️ mindStateData 为空，不保存`);
                             }
                             saveToStorage();
+                        } else {
+                            console.warn(`⚠️ 无法保存心声 - mindStateData:${mindStateData}, conv:${conv}`);
                         }
                         
                         triggerNotificationIfLeftChat(convId);
