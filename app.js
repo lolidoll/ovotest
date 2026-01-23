@@ -1153,17 +1153,6 @@
                     ? `<img src="${conv.avatar}" alt="">` 
                     : conv.name.charAt(0);
                 
-                // ========== 【新增】获取最新的好感度信息 ==========
-                let affinityDisplay = '';
-                if (conv.mindStates && conv.mindStates.length > 0) {
-                    const latestMindState = conv.mindStates[conv.mindStates.length - 1];
-                    if (latestMindState && latestMindState.affinity !== undefined && typeof latestMindState.affinity === 'number') {
-                        const affinity = latestMindState.affinity;
-                        const affinityColor = affinity >= 70 ? '#4CAF50' : (affinity >= 40 ? '#FFC107' : '#F44336');
-                        affinityDisplay = `<span style="display:inline-block;margin-left:8px;padding:2px 8px;background:${affinityColor};color:#fff;font-size:11px;border-radius:3px;font-weight:bold;">${affinity}</span>`;
-                    }
-                }
-                
                 item.innerHTML = `
                     <div class="msg-item-content" style="display:flex;align-items:center;gap:12px;padding:12px 15px;background:#fff;position:relative;z-index:2;cursor:pointer;">
                         <div class="msg-avatar">
@@ -1173,10 +1162,7 @@
                         <div class="msg-content" style="flex:1;">
                             <div class="msg-header">
                                 <div class="msg-title" style="flex:1;">${conv.name}</div>
-                                <div style="display:flex;align-items:center;gap:4px;">
-                                    ${affinityDisplay}
-                                    <div class="msg-time" style="white-space:nowrap;">${conv.time || ''}</div>
-                                </div>
+                                <div class="msg-time" style="white-space:nowrap;">${conv.time || ''}</div>
                             </div>
                             <div class="msg-desc">${conv.lastMsg || ''}</div>
                         </div>
@@ -2561,9 +2547,9 @@
                         const replyContent = replyMsg.emojiUrl ? '[表情包]' : replyMsg.content.substring(0, 40);
                         const replyAuthor = replyMsg.type === 'sent' ? AppState.user.name : AppState.currentChat.name;
                         const replyId = msg.replyTo;
-                        textContent += `<div style="padding:6px;margin-bottom:8px;border-left:3px solid #ddd;background:#f5f5f5;border-radius:4px;font-size:11px;color:#999;max-width:200px;cursor:pointer;" data-scroll-to="${replyId}">
-                            <div style="margin-bottom:3px;font-weight:500;color:#666;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${replyAuthor}</div>
-                            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px;font-size:11px;">${escapeHtml(replyContent)}</div>
+                        textContent += `<div style="padding:6px 8px;margin-bottom:8px;border-left:3px solid #ddd;background:#f5f5f5;border-radius:4px;font-size:11px;color:#999;max-width:280px;cursor:pointer;word-break:break-word;" data-scroll-to="${replyId}">
+                            <div style="margin-bottom:3px;font-weight:500;color:#666;font-size:11px;max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${replyAuthor}</div>
+                            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:270px;font-size:11px;">${escapeHtml(replyContent)}</div>
                         </div>`;
                     }
                 }
@@ -2618,10 +2604,10 @@
                 if (msg.translation && !(msg.isForward && msg.forwardedMoment)) {
                     const transText = msg.translation.result;
                     textContent += `
-                        <div style="padding:8px;margin-top:8px;background:#f9f9f9;border-radius:4px;font-size:12px;color:#666;border-left:2px solid #ddd;">
+                        <div style="padding:10px;margin-top:8px;background:#f9f9f9;border-radius:4px;font-size:12px;color:#666;border-left:2px solid #ddd;max-height:150px;overflow-y:auto;word-break:break-word;">
                             <div style="font-weight:500;margin-bottom:4px;color:#999;font-size:11px;">${msg.translation.targetLanguage}</div>
-                            <div>${escapeHtml(transText)}</div>
-                            <button class="close-trans-btn" data-msg-id="${msg.id}" style="margin-top:4px;background:none;border:none;color:#999;cursor:pointer;font-size:12px;padding:0;">关闭</button>
+                            <div style="max-width:350px;">${escapeHtml(transText)}</div>
+                            <button class="close-trans-btn" data-msg-id="${msg.id}" style="margin-top:6px;background:none;border:none;color:#999;cursor:pointer;font-size:12px;padding:0;">关闭</button>
                         </div>
                     `;
                 }
