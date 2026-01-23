@@ -1160,7 +1160,7 @@
                     if (latestMindState && latestMindState.affinity !== undefined && typeof latestMindState.affinity === 'number') {
                         const affinity = latestMindState.affinity;
                         const affinityColor = affinity >= 70 ? '#4CAF50' : (affinity >= 40 ? '#FFC107' : '#F44336');
-                        affinityDisplay = `<span style="display:inline-block;margin-left:8px;padding:2px 8px;background:${affinityColor};color:#fff;font-size:11px;border-radius:3px;font-weight:bold;">${affinity}💖</span>`;
+                        affinityDisplay = `<span style="display:inline-block;margin-left:8px;padding:2px 8px;background:${affinityColor};color:#fff;font-size:11px;border-radius:3px;font-weight:bold;">${affinity}</span>`;
                     }
                 }
                 
