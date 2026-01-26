@@ -917,9 +917,10 @@ input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:#
 
 /* 聊天工具栏 */
 .chat-toolbar {
+    position:relative;
     display:flex;
-    gap:4px;
-    padding:4px 6px 4px 6px;
+    gap:0px;
+    padding:4px 0px 4px 0px;
     align-items:center;
     background:#fff;
     border-bottom:1px solid #f0f0f0;
@@ -936,8 +937,8 @@ input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:#
     display: none;
 }
 .tb-btn {
-    width:22px;
-    height:22px;
+    width:14px;
+    height:14px;
     border-radius:2px;
     background:transparent;
     border:none;
@@ -945,16 +946,67 @@ input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:#
     align-items:center;
     justify-content:center;
     cursor:pointer;
-    color:#666;
-    padding:5px;
+    color:#999;
+    padding:1px;
     transition:all 0.2s ease;
     flex-shrink:0;
-    min-width:32px;
-    min-height:32px;
+    min-width:18px;
+    min-height:18px;
+}
+.tb-btn svg {
+    width:14px !important;
+    height:14px !important;
 }
 .tb-btn:active { 
     background:#f5f5f5;
     border-color:#999;
+}
+
+/* 更多功能弹出层 */
+.toolbar-more-panel {
+    position:absolute;
+    bottom:100%;
+    left:0;
+    right:0;
+    background:#fff;
+    border-top:1px solid #f0f0f0;
+    box-shadow:0 -2px 10px rgba(0,0,0,0.1);
+    z-index:99;
+    transform:translateY(100%);
+    opacity:0;
+    transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    pointer-events:none;
+}
+.toolbar-more-panel.show {
+    display:block !important;
+    transform:translateY(0);
+    opacity:1;
+    pointer-events:auto;
+}
+.more-panel-grid {
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:10px;
+    padding:15px;
+}
+.more-item {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    padding:12px 8px;
+    background:transparent;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    transition:all 0.2s ease;
+}
+.more-item:active {
+    background:#f5f5f5;
+}
+.more-item span {
+    font-size:12px;
+    color:#333;
 }
 
 /* 表情包库 */
@@ -1682,19 +1734,19 @@ input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:#
     padding: 6px 8px;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 3px;
     -webkit-overflow-scrolling: touch;
 }
 
 .chat-bubble {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     max-width: 90%;
     cursor: pointer;
     transition: background-color 0.2s ease;
     padding: 0;
     border-radius: 0;
-    margin: 2px 0;
+    margin: 0;
     align-items: center;
 }
 .chat-bubble.received {
@@ -1726,7 +1778,16 @@ input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:#
 }
 
 .chat-avatar.hidden {
-    visibility: hidden;
+    display: none;
+}
+
+/* 连续消息隐藏头像后，用margin保持气泡对齐 */
+.chat-bubble.received.hide-avatar {
+    margin-left: 43px;
+}
+
+.chat-bubble.sent.hide-avatar {
+    margin-right: 43px;
 }
 
 .chat-avatar img {
@@ -1755,7 +1816,7 @@ input[type="checkbox"] { width:16px; height:16px; cursor:pointer; accent-color:#
     color: #2d2d2d;
 }
 .chat-bubble.sent .chat-text {
-    background-color: #fff;
+    background-color: rgba(255, 255, 255, 0.5);
     color: #2d2d2d;
     box-shadow: 0 0 0 0.5px #f8f8f8;
 }
