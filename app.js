@@ -856,7 +856,10 @@
             if (btnOffline) btnOffline.addEventListener('click', function() { showToast('线下功能尚未实现'); });
 
             const btnTakeout = document.getElementById('btn-takeout');
-            if (btnTakeout) btnTakeout.addEventListener('click', function() { showToast('交易功能尚未实现'); });
+            if (btnTakeout) btnTakeout.addEventListener('click', function() { showToast('点外卖功能尚未实现'); });
+
+            const btnTransfer = document.getElementById('btn-transfer');
+            if (btnTransfer) btnTransfer.addEventListener('click', function() { showToast('转账功能尚未实现'); });
 
             const btnListen = document.getElementById('btn-listen');
             if (btnListen) btnListen.addEventListener('click', function() { showToast('一起听功能尚未实现'); });
@@ -864,46 +867,11 @@
             const btnPhone = document.getElementById('btn-phone');
             if (btnPhone) btnPhone.addEventListener('click', function() { showToast('查手机功能尚未实现'); });
 
-            // 更多按钮
-            const btnMore = document.getElementById('btn-more');
-            const morePanel = document.getElementById('toolbar-more-panel');
-            if (btnMore && morePanel) {
-                btnMore.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const isShown = morePanel.classList.contains('show');
-                    if (isShown) {
-                        morePanel.classList.remove('show');
-                    } else {
-                        morePanel.classList.add('show');
-                    }
-                });
-            }
+            const btnFrog = document.getElementById('btn-frog');
+            if (btnFrog) btnFrog.addEventListener('click', function() { showToast('旅行青蛙功能尚未实现'); });
 
-            // 更多面板中的功能按钮
-            const moreDiary = document.getElementById('more-diary');
-            if (moreDiary) moreDiary.addEventListener('click', function() { 
-                showToast('日记功能尚未实现'); 
-                if (morePanel) morePanel.classList.remove('show');
-            });
-
-            const moreMemo = document.getElementById('more-memo');
-            if (moreMemo) moreMemo.addEventListener('click', function() { 
-                showToast('备忘录功能尚未实现'); 
-                if (morePanel) morePanel.classList.remove('show');
-            });
-
-            const btnFrog = document.getElementById('more-frog');
-            if (btnFrog) btnFrog.addEventListener('click', function() { 
-                showToast('旅行青蛙功能尚未实现'); 
-                if (morePanel) morePanel.classList.remove('show');
-            });
-
-            const btnAnonymous = document.getElementById('more-anonymous');
-            if (btnAnonymous) btnAnonymous.addEventListener('click', function() { 
-                showToast('匿名提问功能尚未实现'); 
-                if (morePanel) morePanel.classList.remove('show');
-            });
+            const btnAnonymous = document.getElementById('btn-anonymous');
+            if (btnAnonymous) btnAnonymous.addEventListener('click', function() { showToast('匿名提问功能尚未实现'); });
 
             // 心声按钮
             const mindBtn = document.getElementById('chat-mind-btn');
@@ -1001,8 +969,6 @@
                 const btnEmoji = document.getElementById('btn-emoji');
                 const inputArea = document.querySelector('.chat-input-area');
                 const toolbar = document.getElementById('chat-toolbar');
-                const morePanel = document.getElementById('toolbar-more-panel');
-                const btnMore = document.getElementById('btn-more');
                 
                 if (emojiLib && emojiLib.classList.contains('show')) {
                     if (!e.target.closest('#emoji-library') && !e.target.closest('#btn-emoji')) {
@@ -1011,13 +977,6 @@
                         // 恢复输入框和工具栏到初始位置
                         if (inputArea) inputArea.style.transform = 'translateY(0)';
                         if (toolbar) toolbar.style.transform = 'translateY(0)';
-                    }
-                }
-                
-                // 点击更多面板外部关闭
-                if (morePanel && morePanel.classList.contains('show')) {
-                    if (!e.target.closest('#toolbar-more-panel') && !e.target.closest('#btn-more')) {
-                        morePanel.classList.remove('show');
                     }
                 }
             });
@@ -2563,22 +2522,6 @@
                     className += ' selected';
                 }
                 
-                // 判断是否应该隐藏头像（连续同侧消息只显示第一个头像）
-                let shouldHideAvatar = false;
-                if (index > 0) {
-                    const prevMsg = messages[index - 1];
-                    if (prevMsg && prevMsg.type !== 'system') {
-                        const currentSide = (msg.type === 'voice' || msg.type === 'location') ? msg.sender : msg.type;
-                        const prevSide = (prevMsg.type === 'voice' || prevMsg.type === 'location') ? prevMsg.sender : prevMsg.type;
-                        shouldHideAvatar = (currentSide === prevSide);
-                    }
-                }
-                
-                // 如果需要隐藏头像，添加hide-avatar class到bubble
-                if (shouldHideAvatar) {
-                    className += ' hide-avatar';
-                }
-                
                 bubble.className = className;
                 bubble.dataset.msgId = msg.id;
                 bubble.dataset.msgIndex = index;
@@ -2679,9 +2622,8 @@
                 if (msg.type === 'voice') {
                     // 语音条消息渲染
                     const duration = msg.duration || 1;
-                    const avatarClass = shouldHideAvatar ? 'chat-avatar hidden' : 'chat-avatar';
                     bubble.innerHTML = `
-                        <div class="${avatarClass}">${avatarContent}</div>
+                        <div class="chat-avatar">${avatarContent}</div>
                         <div class="voice-bubble">
                             <div class="voice-waveform">
                                 <span class="wave"></span>
@@ -2698,9 +2640,8 @@
                     const locationAddress = msg.locationAddress ? escapeHtml(msg.locationAddress) : '';
                     const locationDistance = msg.locationDistance || 5;
                     const senderName = msg.type === 'sent' ? AppState.user.name : AppState.currentChat.name;
-                    const avatarClass = shouldHideAvatar ? 'chat-avatar hidden' : 'chat-avatar';
                     bubble.innerHTML = `
-                        <div class="${avatarClass}">${avatarContent}</div>
+                        <div class="chat-avatar">${avatarContent}</div>
                         <div class="location-bubble" style="cursor:pointer;">
                             <div class="location-map-preview"></div>
                             <div class="location-info">
@@ -2738,10 +2679,9 @@
                     const momentAuthor = escapeHtml(forwarded.author || '用户');
                     const momentContent = escapeHtml(forwarded.content || '').trim().split('\n').map(line => line.trim()).join('\n');
                     const momentDate = forwarded.timestamp ? new Date(forwarded.timestamp).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit' }) : '';
-                    const avatarClass = shouldHideAvatar ? 'chat-avatar hidden' : 'chat-avatar';
                     
                     bubble.innerHTML = `
-                        <div class="${avatarClass}">${avatarContent}</div>
+                        <div class="chat-avatar">${avatarContent}</div>
                         <div style="
                             width: 240px;
                         ">
@@ -2824,9 +2764,8 @@
                     bubble.classList.add('forward-moment-message');
                 } else if (msg.isImage && msg.imageData) {
                     // 图片消息：限制大小为100px（与表情包相同），保持纵横比，对齐头像
-                    const avatarClass = shouldHideAvatar ? 'chat-avatar hidden' : 'chat-avatar';
                     bubble.innerHTML = `
-                        <div class="${avatarClass}">${avatarContent}</div>
+                        <div class="chat-avatar">${avatarContent}</div>
                         <img src="${msg.imageData}" alt="图片" style="max-width:100px;max-height:100px;width:auto;height:auto;border-radius:8px;display:block;">
                     `;
                     // 为图片消息添加特殊class
@@ -2835,16 +2774,15 @@
                     // 表情包消息：显示头像 + 100px表情包（统一处理AI和用户发送的表情包）
                     // emojiUrl是新格式，isEmoji标记的旧格式也需要支持
                     const emojiImageUrl = msg.emojiUrl || (msg.isEmoji && AppState.emojis.find(e => e.text === msg.content)?.url);
-                    const avatarClass = shouldHideAvatar ? 'chat-avatar hidden' : 'chat-avatar';
                     if (emojiImageUrl) {
                         bubble.innerHTML = `
-                            <div class="${avatarClass}">${avatarContent}</div>
+                            <div class="chat-avatar">${avatarContent}</div>
                             <img src="${emojiImageUrl}" alt="表情" style="max-width:100px;max-height:100px;width:auto;height:auto;border-radius:8px;display:block;">
                         `;
                     } else {
                         // 如果找不到表情包图片，显示文字
                         bubble.innerHTML = `
-                            <div class="${avatarClass}">${avatarContent}</div>
+                            <div class="chat-avatar">${avatarContent}</div>
                             ${textContent}
                         `;
                     }
@@ -2852,9 +2790,8 @@
                     bubble.classList.add('emoji-message');
                 } else {
                     // 其他消息（普通文本、表情+文字、有描述的图片等）
-                    const avatarClass = shouldHideAvatar ? 'chat-avatar hidden' : 'chat-avatar';
                     bubble.innerHTML = `
-                        <div class="${avatarClass}">${avatarContent}</div>
+                        <div class="chat-avatar">${avatarContent}</div>
                         ${textContent}
                     `;
                 }
@@ -4361,7 +4298,7 @@
             // 清空输入
             input.value = '';
             input.style.height = 'auto';
-            input.placeholder = '输入消息...双击任意头像触发角色回复';
+            input.placeholder = '输入消息...';
             
             // 移除引用显示栏（旧版本）和隐藏新版引用栏
             const replyBar = document.getElementById('reply-bar');
