@@ -77,6 +77,62 @@
         };
 
         
+        // ========== 更新心声按钮显示 ==========
+        function updateMindStateButton(conv) {
+            const heartSvg = document.getElementById('chat-mind-heart');
+            const fillRect = document.getElementById('heart-fill-rect');
+            const affinityText = document.getElementById('heart-affinity-text');
+            
+            if (!heartSvg || !fillRect || !affinityText) return;
+            
+            // 获取最新的好感度数据
+            let affinity = 0;
+            if (conv && conv.mindStates && conv.mindStates.length > 0) {
+                // 从最后一条心声记录中获取好感度
+                const lastMindState = conv.mindStates[conv.mindStates.length - 1];
+                if (lastMindState && typeof lastMindState.affinity === 'number') {
+                    affinity = Math.max(0, Math.min(100, lastMindState.affinity)); // 限制在0-100之间
+                }
+            }
+            
+            // 更新填充高度（从底部向上填充）
+            const fillHeight = (affinity / 100) * 24; // 24是SVG的高度
+            fillRect.setAttribute('y', String(24 - fillHeight));
+            fillRect.setAttribute('height', String(fillHeight));
+            
+            // 更新好感度数值显示
+            affinityText.textContent = String(affinity);
+            
+            // 根据好感度设置颜色
+            let fillColor = '#d0d0d0'; // 默认浅灰色
+            let textColor = '#666';
+            
+            if (affinity >= 80) {
+                fillColor = '#ff6b9d'; // 高好感度：粉红色
+                textColor = '#fff';
+            } else if (affinity >= 60) {
+                fillColor = '#ffb3d1'; // 中高好感度：浅粉色
+                textColor = '#fff';
+            } else if (affinity >= 40) {
+                fillColor = '#d4d4d4'; // 中等好感度：中灰色
+                textColor = '#666';
+            } else if (affinity >= 20) {
+                fillColor = '#e0e0e0'; // 中低好感度：浅灰色
+                textColor = '#999';
+            }
+            
+            // 更新填充路径的颜色
+            const fillPath = heartSvg.querySelector('path[clip-path]');
+            if (fillPath) {
+                fillPath.setAttribute('fill', fillColor);
+            }
+            
+            // 更新文字颜色
+            affinityText.setAttribute('fill', textColor);
+            
+            console.log(`💖 心声按钮已更新 - 好感度: ${affinity}, 填充高度: ${fillHeight}px, 颜色: ${fillColor}`);
+        }
+        
         // 获取conversation的运行时状态
         function getConversationState(convId) {
             if (!AppState.conversationStates[convId]) {
@@ -101,6 +157,11 @@
                 renderUI();
                 updateDynamicFuncList();
                 setupEmojiLibraryObserver();
+                
+                // 初始化表情包管理器
+                if (window.EmojiManager) {
+                    window.EmojiManager.init();
+                }
                 
                 // 启动数据实时同步监听
                 setupDataSyncListener();
@@ -857,6 +918,24 @@
 
             const btnPhone = document.getElementById('btn-phone');
             if (btnPhone) btnPhone.addEventListener('click', function() { showToast('查手机功能尚未实现'); });
+
+            // 更多按钮 - 显示/隐藏更多功能弹出层
+            const btnMore = document.getElementById('btn-more');
+            const morePanel = document.getElementById('toolbar-more-panel');
+            if (btnMore && morePanel) {
+                btnMore.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isVisible = morePanel.style.display !== 'none';
+                    morePanel.style.display = isVisible ? 'none' : 'block';
+                });
+                
+                // 点击其他地方关闭弹出层
+                document.addEventListener('click', function(e) {
+                    if (morePanel && !morePanel.contains(e.target) && e.target !== btnMore) {
+                        morePanel.style.display = 'none';
+                    }
+                });
+            }
 
             const btnFrog = document.getElementById('btn-frog');
             if (btnFrog) btnFrog.addEventListener('click', function() { showToast('旅行青蛙功能尚未实现'); });
@@ -2390,6 +2469,9 @@
                 emojiLib.classList.remove('show');
             }
             
+            // 更新心声按钮显示
+            updateMindStateButton(conv);
+            
             // 异步渲染消息和保存数据（避免阻塞UI）
             requestAnimationFrame(() => {
                 renderChatMessages();
@@ -2535,10 +2617,7 @@
                         const replyContent = replyMsg.emojiUrl ? '[表情包]' : replyMsg.content.substring(0, 40);
                         const replyAuthor = replyMsg.type === 'sent' ? AppState.user.name : AppState.currentChat.name;
                         const replyId = msg.replyTo;
-                        textContent += `<div style="padding:6px;margin-bottom:8px;border-left:3px solid #ddd;background:#f5f5f5;border-radius:4px;font-size:11px;color:#999;max-width:200px;cursor:pointer;" data-scroll-to="${replyId}">
-                            <div style="margin-bottom:3px;font-weight:500;color:#666;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${replyAuthor}</div>
-                            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px;font-size:11px;">${escapeHtml(replyContent)}</div>
-                        </div>`;
+                        textContent += `<div style="padding:6px;margin-bottom:8px;border-left:3px solid #ddd;background:#f5f5f5;border-radius:4px;font-size:11px;color:#999;max-width:200px;cursor:pointer;" data-scroll-to="${replyId}"><div style="margin-bottom:3px;font-weight:500;color:#666;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${replyAuthor}</div><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px;font-size:11px;">${escapeHtml(replyContent)}</div></div>`;
                     }
                 }
                 
@@ -2591,13 +2670,7 @@
                 // 显示翻译结果（但转发朋友圈消息除外）
                 if (msg.translation && !(msg.isForward && msg.forwardedMoment)) {
                     const transText = msg.translation.result;
-                    textContent += `
-                        <div style="padding:8px;margin-top:8px;background:#f9f9f9;border-radius:4px;font-size:12px;color:#666;border-left:2px solid #ddd;">
-                            <div style="font-weight:500;margin-bottom:4px;color:#999;font-size:11px;">${msg.translation.targetLanguage}</div>
-                            <div>${escapeHtml(transText)}</div>
-                            <button class="close-trans-btn" data-msg-id="${msg.id}" style="margin-top:4px;background:none;border:none;color:#999;cursor:pointer;font-size:12px;padding:0;">关闭</button>
-                        </div>
-                    `;
+                    textContent += `<div style="padding:8px;margin-top:8px;background:#f9f9f9;border-radius:4px;font-size:12px;color:#666;border-left:2px solid #ddd;"><div style="font-weight:500;margin-bottom:4px;color:#999;font-size:11px;">${msg.translation.targetLanguage}</div><div>${escapeHtml(transText)}</div><button class="close-trans-btn" data-msg-id="${msg.id}" style="margin-top:4px;background:none;border:none;color:#999;cursor:pointer;font-size:12px;padding:0;">关闭</button></div>`;
                 }
                 
                 // 转发朋友圈消息已经设置了 textContent，这里直接使用
@@ -6848,6 +6921,11 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
             if (AppState.currentChat && AppState.currentChat.id === convId) renderChatMessages();
             renderConversations();
 
+            // 更新心声按钮（如果当前正在查看这个会话）
+            if (AppState.currentChat && AppState.currentChat.id === convId) {
+                updateMindStateButton(conv);
+            }
+
             // 检查是否需要自动总结
             checkAndAutoSummarize(convId);
 
@@ -7288,15 +7366,12 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                             if (processed === filesArray.length) {
                                 saveToStorage();
                                 document.getElementById('group-select-modal').remove();
-                                if (context === 'mgmt') {
-                                    // 重新渲染管理器的分组和内容
-                                    renderEmojiMgmtGroups();
-                                    const firstGroup = AppState.emojiGroups[0];
-                                    if (firstGroup) renderEmojiMgmtGrid(firstGroup.id);
-                                } else {
-                                    // 重新渲染聊天表情库
-                                    renderEmojiLibrary();
-                                    renderEmojiGroups('chat');
+                                // 重新渲染聊天表情库
+                                renderEmojiLibrary();
+                                renderEmojiGroups('chat');
+                                // 如果表情包管理器是打开的，也刷新它
+                                if (window.EmojiManager && document.getElementById('emoji-manager-page').style.display !== 'none') {
+                                    window.EmojiManager.renderGroups();
                                 }
                                 alert('已导入 ' + filesArray.length + ' 个表情包');
                             }
@@ -7520,348 +7595,13 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
         }
 
         function openEmojiGroupManager() {
-            let modal = document.getElementById('emoji-group-mgmt-modal');
-            if (modal) modal.remove();
-            
-            modal = document.createElement('div');
-            modal.id = 'emoji-group-mgmt-modal';
-            modal.className = 'emoji-mgmt-modal show';
-            
-            // 点击外部关闭
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    modal.remove();
-                }
-            });
-            
-            modal.innerHTML = `
-                <div class="emoji-mgmt-content emoji-pack-manager" style="max-width:95vw;max-height:90vh;">
-                    <!-- 顶部 -->
-                    <div style="padding:16px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="margin:0;font-size:16px;color:#333;font-weight:600;">表情包管理</h3>
-                        <button class="emoji-close-btn" onclick="document.getElementById('emoji-group-mgmt-modal').remove();" style="width:32px;height:32px;border-radius:50%;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#666;transition:background 0.2s;">×</button>
-                    </div>
-                    <div style="text-align:center;font-size:12px;color:#999;padding:8px 0;border-bottom:1px solid #e8e8e8;">双击表情包修改其文字描述</div>
-                    
-                    <!-- 功能按钮区 -->
-                    <div style="padding:12px;border-bottom:1px solid #e8e8e8;display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:nowrap;overflow-x:auto;">
-                        <button class="emoji-mgmt-action-btn" onclick="document.getElementById('emoji-mgmt-file-input').click();" style="white-space:nowrap;">导入文件</button>
-                        <button class="emoji-mgmt-action-btn" onclick="showUrlImportDialog('mgmt');" style="white-space:nowrap;">导入URL</button>
-                        <button class="emoji-mgmt-action-btn" id="emoji-mgmt-delete-btn" onclick="toggleEmojiMgmtDeleteMode();" style="white-space:nowrap;">删除选中</button>
-                    </div>
-                    
-                    <!-- 分组标签栏 -->
-                    <div id="emoji-mgmt-groups-bar" style="padding:12px;border-bottom:1px solid #e8e8e8;display:flex;gap:8px;overflow-x:auto;white-space:nowrap;"></div>
-                    
-                    <!-- 内容区 -->
-                    <div id="emoji-mgmt-content-area" style="flex:1;overflow-y:auto;padding:16px;min-height:300px;">
-                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;">
-                            <div style="font-size:48px;margin-bottom:8px;">🙂</div>
-                            <div>该分组下暂无表情包</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            
-            // hover效果
-            const closeBtn = modal.querySelector('.emoji-close-btn');
-            if (closeBtn) {
-                closeBtn.addEventListener('mouseenter', function() {
-                    this.style.background = '#f5f5f5';
-                });
-                closeBtn.addEventListener('mouseleave', function() {
-                    this.style.background = 'transparent';
-                });
-            }
-            
-            // 初始化分组和内容
-            renderEmojiMgmtGroups();
-            
-            // 文件输入
-            const fileInput = document.createElement('input');
-            fileInput.id = 'emoji-mgmt-file-input';
-            fileInput.type = 'file';
-            fileInput.accept = 'image/*,.json';
-            fileInput.multiple = true;
-            fileInput.style.display = 'none';
-            fileInput.addEventListener('change', function(e) {
-                handleEmojiImport(e.target.files, 'mgmt');
-                this.value = '';
-            });
-            document.body.appendChild(fileInput);
-        }
-
-        function renderEmojiMgmtGroups() {
-            const bar = document.getElementById('emoji-mgmt-groups-bar');
-            if (!bar) return;
-            
-            bar.innerHTML = '';
-            bar.style.cssText = 'display:grid;grid-auto-flow:column;gap:16px;padding:12px;border-bottom:1px solid #e8e8e8;align-items:start;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;';
-            
-            const firstGroup = AppState.emojiGroups[0];
-            if (!firstGroup) return;
-            
-            AppState.emojiGroups.forEach((group, index) => {
-                const container = document.createElement('div');
-                container.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;min-width:fit-content;';
-                
-                const btn = document.createElement('button');
-                btn.className = 'emoji-mgmt-group-tag';
-                btn.style.cssText = 'width:48px;height:48px;border-radius:8px;border:2px solid #e8e8e8;background:#f5f5f5;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;transition:all 0.2s;color:#333;font-weight:600;';
-                // 使用分组名称的首字符作为图标
-                btn.textContent = group.name.charAt(0).toUpperCase();
-                btn.dataset.groupId = group.id;
-                btn.dataset.index = index;
-                btn.dataset.isDefault = index === 0 ? 'true' : 'false';
-                btn.title = index === 0 ? group.name + ' （默认）' : group.name;
-                
-                // 默认选中第一个分组
-                if (group.id === firstGroup.id) {
-                    btn.classList.add('active');
-                    btn.style.cssText += 'border-color:#000;background:#fff;';
-                    renderEmojiMgmtGrid(group.id);
-                }
-                
-                btn.addEventListener('click', function() {
-                    bar.querySelectorAll('.emoji-mgmt-group-tag').forEach(t => {
-                        t.classList.remove('active');
-                        t.style.borderColor = '#e8e8e8';
-                        t.style.background = '#f5f5f5';
-                    });
-                    btn.classList.add('active');
-                    btn.style.borderColor = '#000';
-                    btn.style.background = '#fff';
-                    renderEmojiMgmtGrid(group.id);
-                });
-                
-                btn.addEventListener('mouseenter', function() {
-                    if (!btn.classList.contains('active')) {
-                        this.style.borderColor = '#999';
-                    }
-                });
-                btn.addEventListener('mouseleave', function() {
-                    if (!btn.classList.contains('active')) {
-                        this.style.borderColor = '#e8e8e8';
-                    }
-                });
-                
-                container.appendChild(btn);
-                
-                // 添加操作按钮容器（编辑 + 删除）
-                const actionContainer = document.createElement('div');
-                actionContainer.style.cssText = 'display:flex;gap:4px;justify-content:center;width:100%;';
-                
-                // 编辑按钮
-                const editBtn = document.createElement('button');
-                editBtn.textContent = '编辑';
-                editBtn.style.cssText = 'font-size:11px;padding:4px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;transition:all 0.2s;white-space:nowrap;';
-                editBtn.title = '修改分组名称';
-                editBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    editEmojiGroupName(group.id);
-                });
-                editBtn.addEventListener('mouseenter', function() {
-                    this.style.background = '#f0f0f0';
-                });
-                editBtn.addEventListener('mouseleave', function() {
-                    this.style.background = '#fff';
-                });
-                actionContainer.appendChild(editBtn);
-                
-                // 删除按钮（默认分组不能删除）
-                if (index > 0) {
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.textContent = '删除';
-                    deleteBtn.style.cssText = 'font-size:11px;padding:4px 8px;border:1px solid #f44;border-radius:3px;background:#fff;color:#f44;cursor:pointer;transition:all 0.2s;white-space:nowrap;';
-                    deleteBtn.title = '删除分组';
-                    deleteBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        if (confirm(`确定要删除分组"${group.name}"吗？该分组下的所有表情包也会被删除。`)) {
-                            deleteEmojiGroup(group.id);
-                        }
-                    });
-                    deleteBtn.addEventListener('mouseenter', function() {
-                        this.style.background = '#ffe8e8';
-                    });
-                    deleteBtn.addEventListener('mouseleave', function() {
-                        this.style.background = '#fff';
-                    });
-                    actionContainer.appendChild(deleteBtn);
-                }
-                
-                container.appendChild(actionContainer);
-                bar.appendChild(container);
-            });
-            
-            // 添加"新增分组"按钮
-            const addBtn = document.createElement('button');
-            const addContainer = document.createElement('div');
-            addContainer.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;min-width:fit-content;';
-            
-            addBtn.style.cssText = 'width:48px;height:48px;border:2px dashed #ddd;border-radius:8px;background:#f9f9f9;cursor:pointer;font-size:24px;padding:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;color:#999;font-weight:600;';
-            addBtn.textContent = '+';
-            addBtn.title = '新增分组';
-            addBtn.addEventListener('mouseenter', function() {
-                this.style.background = '#f0f0f0';
-                this.style.borderColor = '#999';
-                this.style.color = '#333';
-            });
-            addBtn.addEventListener('mouseleave', function() {
-                this.style.background = '#f9f9f9';
-                this.style.borderColor = '#ddd';
-                this.style.color = '#999';
-            });
-            addBtn.addEventListener('click', function() {
-                createNewEmojiGroup();
-            });
-            addContainer.appendChild(addBtn);
-            bar.appendChild(addContainer);
-        }
-
-        function renderEmojiMgmtGrid(groupId) {
-            const emojisInGroup = AppState.emojis.filter(e => e.groupId === groupId);
-            const contentArea = document.getElementById('emoji-mgmt-content-area');
-            
-            if (!contentArea) return;
-            
-            if (emojisInGroup.length === 0) {
-                contentArea.innerHTML = `
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;">
-                        <div style="font-size:48px;margin-bottom:8px;">🙂</div>
-                        <div>该分组下暂无表情包</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            contentArea.innerHTML = `
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-                    ${emojisInGroup.map(emoji => `
-                        <div class="emoji-mgmt-item" data-id="${emoji.id}" style="cursor:pointer;text-align:center;padding:8px;border:1px solid #e8e8e8;border-radius:6px;background:#f9f9f9;transition:all 0.2s;">
-                            <img src="${emoji.url}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;margin-bottom:4px;">
-                            <div style="font-size:12px;color:#666;word-break:break-word;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;">${emoji.text || '无描述'}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            
-            // 绑定事件
-            contentArea.querySelectorAll('.emoji-mgmt-item').forEach(item => {
-                item.addEventListener('dblclick', function() {
-                    const emojiId = this.dataset.id;
-                    editEmojiDescription(AppState.emojis.find(e => e.id === emojiId));
-                });
-                
-                item.addEventListener('click', function() {
-                    if (document.getElementById('emoji-mgmt-delete-btn').dataset.active === 'true') {
-                        this.classList.toggle('selected');
-                        this.style.borderColor = this.classList.contains('selected') ? '#000' : '#e8e8e8';
-                        this.style.background = this.classList.contains('selected') ? '#f0f0f0' : '#f9f9f9';
-                    }
-                });
-            });
-        }
-
-        function toggleEmojiMgmtDeleteMode() {
-            const btn = document.getElementById('emoji-mgmt-delete-btn');
-            const isActive = btn.dataset.active === 'true';
-            const contentArea = document.getElementById('emoji-mgmt-content-area');
-            
-            if (isActive) {
-                // 删除选中的表情
-                const selectedItems = contentArea.querySelectorAll('.emoji-mgmt-item.selected');
-                if (selectedItems.length === 0) {
-                    alert('请先选择要删除的表情包');
-                    return;
-                }
-                
-                if (!confirm(`确定要删除选中的 ${selectedItems.length} 个表情包吗？`)) return;
-                
-                selectedItems.forEach(item => {
-                    const emojiId = item.dataset.id;
-                    AppState.emojis = AppState.emojis.filter(e => e.id !== emojiId);
-                });
-                
-                saveToStorage();
-                
-                // 重新渲染当前分组
-                const activeTag = document.querySelector('.emoji-mgmt-group-tag.active');
-                if (activeTag) {
-                    renderEmojiMgmtGrid(activeTag.dataset.groupId);
-                }
-                
-                // 退出删除模式
-                btn.dataset.active = 'false';
-                btn.style.color = '#666';
-                contentArea.querySelectorAll('.emoji-mgmt-item').forEach(item => {
-                    item.classList.remove('selected');
-                    item.style.borderColor = '#e8e8e8';
-                    item.style.background = '#f9f9f9';
-                });
-            } else {
-                // 进入删除模式
-                btn.dataset.active = 'true';
-                btn.style.color = '#f00';
-                contentArea.querySelectorAll('.emoji-mgmt-item').forEach(item => {
-                    item.style.cursor = 'pointer';
-                    item.style.opacity = '1';
-                });
+            // 使用新的全屏表情包管理器
+            if (window.EmojiManager) {
+                window.EmojiManager.show();
             }
         }
 
-        function deleteEmojiGroup(groupId) {
-            // 删除分组
-            AppState.emojiGroups = AppState.emojiGroups.filter(g => g.id !== groupId);
-            
-            // 同时删除该分组下的所有表情包
-            AppState.emojis = AppState.emojis.filter(e => e.groupId !== groupId);
-            
-            // 保存到本地存储
-            saveToStorage();
-            
-            // 重新渲染分组列表
-            renderEmojiMgmtGroups();
-            
-            // 重新渲染表情包网格（显示第一个分组）
-            const firstGroup = AppState.emojiGroups[0];
-            if (firstGroup) {
-                renderEmojiMgmtGrid(firstGroup.id);
-            }
-        }
-
-        function createNewEmojiGroup() {
-            const groupName = prompt('请输入新分组的名称：');
-            if (!groupName || groupName.trim() === '') return;
-            
-            const newGroup = {
-                id: 'group_' + Date.now(),
-                name: groupName.trim(),
-                description: ''
-            };
-            
-            AppState.emojiGroups.push(newGroup);
-            saveToStorage();
-            
-            // 重新渲染分组列表
-            renderEmojiMgmtGroups();
-            // 选中新分组
-            renderEmojiMgmtGrid(newGroup.id);
-        }
-
-        function editEmojiGroupName(groupId) {
-            const group = AppState.emojiGroups.find(g => g.id === groupId);
-            if (!group) return;
-            
-            const newName = prompt('请输入新的分组名称：', group.name);
-            if (!newName || newName.trim() === '') return;
-            
-            group.name = newName.trim();
-            saveToStorage();
-            
-            // 重新渲染分组列表
-            renderEmojiMgmtGroups();
-        }
+        // 这些函数已迁移到emoji-manager.js中
 
         function renderEmojiGroupList() {
             const list = document.getElementById('emoji-group-list');
@@ -8074,13 +7814,12 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                     });
                     
                     saveToStorage();
-                    if (context === 'mgmt') {
-                        renderEmojiMgmtGroups();
-                        const firstGroup = AppState.emojiGroups[0];
-                        if (firstGroup) renderEmojiMgmtGrid(firstGroup.id);
-                    } else {
-                        renderEmojiLibrary();
-                        renderEmojiGroups('chat');
+                    // 重新渲染聊天表情库
+                    renderEmojiLibrary();
+                    renderEmojiGroups('chat');
+                    // 如果表情包管理器是打开的，也刷新它
+                    if (window.EmojiManager && document.getElementById('emoji-manager-page').style.display !== 'none') {
+                        window.EmojiManager.renderGroups();
                     }
                     document.getElementById('group-select-modal').remove();
                     alert('已导入 ' + emojis.length + ' 个表情包');
