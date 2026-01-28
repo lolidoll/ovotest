@@ -2692,7 +2692,7 @@
                     const locationName = escapeHtml(msg.locationName || '位置');
                     const locationAddress = msg.locationAddress ? escapeHtml(msg.locationAddress) : '';
                     const locationDistance = msg.locationDistance || 5;
-                    const senderName = msg.type === 'sent' ? AppState.user.name : AppState.currentChat.name;
+                    const senderName = msg.sender === 'sent' ? AppState.user.name : AppState.currentChat.name;
                     bubble.innerHTML = `
                         <div class="chat-avatar">${avatarContent}</div>
                         <div class="location-bubble" style="cursor:pointer;">
@@ -6989,8 +6989,13 @@ IMPORTANT REQUIREMENTS FOR 心声 (Mind State):
                     if (AppState.currentChat && AppState.currentChat.id === convId) renderChatMessages();
                     renderConversations();
                     
-                    // 只在最后一条消息后触发通知
+                    // 只在最后一条消息后触发通知和更新心声按钮
                     if (index === messages.length - 1) {
+                        // 更新心声按钮（如果当前正在查看这个会话）
+                        const conv = AppState.conversations.find(c => c.id === convId);
+                        if (AppState.currentChat && AppState.currentChat.id === convId && conv) {
+                            updateMindStateButton(conv);
+                        }
                         triggerNotificationIfLeftChat(convId);
                     }
                 }, currentDelay);
